@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/list_item_string"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_alignParentLeft="true"
+        android:paddingLeft="20dp"
+        android:textSize="18sp"
+        />
+
+    <ToggleButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/blockToggleButton"
+        android:layout_gravity="bottom"
+        android:checked="false"
+        android:textOff="Block"
+        android:textOn="Block"
+        android:background="@drawable/check_block"
+        android:layout_alignParentTop="true"
+        android:layout_toLeftOf="@+id/allowToggleButton"
+        android:layout_toStartOf="@+id/allowToggleButton" />
+
+    <ToggleButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/allowToggleButton"
+        android:layout_gravity="bottom"
+        android:checked="false"
+        android:textOff="Modify"
+        android:textOn="Modify"
+        android:background="@drawable/check_allow"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentEnd="true" />
+
+</RelativeLayout>

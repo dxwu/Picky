@@ -2,24 +2,57 @@ package edu.dartmouth.dwu.picky;
 
 import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
+import android.support.design.widget.TabLayout;
+import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.Switch;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentPagerAdapter;
+import android.widget.ToggleButton;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "Picky";
+    private boolean firstLoad = true;
 
+    public static ArrayList<String> allApps = null;
+    public static List<ApplicationInfo> installedApplications = null;
+    public static HashMap<String, Integer> nameToUid = null;
+    public static HashMap<Integer, String> uidToName = null;
+
+    // one for every kind of PolicyMessage
+    // saves policy info for this app session
+    // have to store them here because tabs and app activities may be stopped
+    public static List<List<FilterLine>> savedPolicies
+            = new ArrayList<>(Policy.messages.length);
+    public static List<HashMap<Integer, ToggleButton>> blockButtons
+            = new ArrayList<>(Policy.messages.length);
+    public static List<HashMap<Integer, ToggleButton>> allowButtons
+            = new ArrayList<>(Policy.messages.length);
+
+    public static ArrayList<ArrayList<Integer>> blockButtonsToSet
+            = new ArrayList<ArrayList<Integer>>(Policy.messages.length);
+    public static ArrayList<ArrayList<Integer>> allowButtonsToSet
+            = new ArrayList<ArrayList<Integer>>(Policy.messages.length);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,131 +65,65 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                // import policy
+
             }
         });
 
-        String ret = nativeSetUpPermissions();
+        final TabLayout tabLayout = (TabLayout) findViewById(R.id.tab_layout);
+        tabLayout.setTabGravity(TabLayout.GRAVITY_FILL);
+
+        final ViewPager viewPager = (ViewPager) findViewById(R.id.pager);
+        viewPager.setAdapter(new SectionPagerAdapter(getSupportFragmentManager()));
+
+        tabLayout.addTab(tabLayout.newTab());
+        tabLayout.addTab(tabLayout.newTab());
+        tabLayout.addTab(tabLayout.newTab());
+        tabLayout.setupWithViewPager(viewPager);
+
+        // get rid of left-gravity title text
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+
+        String ret = Policy.nativeSetUpPermissions();
         Log.i(TAG, ret);
+
+        for (int i=0; i<Policy.messages.length; i++) {
+            savedPolicies.add(new ArrayList<FilterLine>());
+            blockButtons.add(new HashMap<Integer, ToggleButton>());
+            allowButtons.add(new HashMap<Integer, ToggleButton>());
+
+            blockButtonsToSet.add(new ArrayList<Integer>());
+            allowButtonsToSet.add(new ArrayList<Integer>());
+        }
+
+        // load policy from binderfilter driver into memory
+        if (firstLoad) {
+            if (Policy.loadPolicy() == -1) {
+                Toast.makeText(this, "Error loading policy!", Toast.LENGTH_LONG).show();
+            }
+            firstLoad = false;
+        }
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        if (id == R.id.action_settings) {
+         if (item.getItemId() == R.id.action_settings) {
+            Toast.makeText(this, "Created by David Wu", Toast.LENGTH_LONG).show();
             return true;
         }
 
         return super.onOptionsItemSelected(item);
     }
 
-    //http://ph0b.com/new-android-studio-ndk-support/
-    // Android Studio->preferences->build,execution,deployment->build tools->gradle->use local gradle distrib
-    // download gradle 2.10, ndk tools
-    public native String nativeWriteUserFilter(String[] intents, int level_noBT, int level_withBT);
-    public native String nativeSetUpPermissions();
-
-    static {
-        System.loadLibrary("picky-jni");
+    public void displayToast(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
-    public void setTempFilter(View view) {
-        //String ret = nativeWriteUserFilter(new String[]{"android.intent.action.VOICE_ASSIST"}, 100, 100);
-        //String ret = nativeWriteUserFilter(new String[]{"android.permission.RECORD_AUDIO"}, 100, 100);
-        //http://androidxref.com/6.0.1_r10/xref/frameworks/av/media/libmedia/IMediaRecorder.cpp#256
-        //Log.i(TAG, ret);
-    }
-
-    public void setUserFilter(View view) {
-        UserFilter userFilter = getUserFieldsOrDefault();
-        if (userFilter == null) {
-            return;
-        }
-
-        String[] intents = generateIntentsArray(userFilter);
-
-        String ret = nativeWriteUserFilter(intents, userFilter.levelNoBt, userFilter.levelWithBt);
-        Log.i(TAG, ret);
-    }
-
-    public UserFilter getUserFieldsOrDefault() {
-        EditText mEditBToff = (EditText)findViewById(R.id.batteryLevelBToff);
-        EditText mEditBTon = (EditText)findViewById(R.id.batteryLevelBTon);
-
-        String blOff = mEditBToff.getText().toString();
-        String blOn = mEditBTon.getText().toString();
-        int intLevelOff, intLevelOn;
-
-        if (blOff.equals("")) {
-            intLevelOff = UserFilter.LEVEL_NO_BT_DEFAULT;
-        } else {
-            try {
-                intLevelOff = Integer.parseInt(blOff);
-            } catch (NumberFormatException e) {
-                Log.v(TAG, "parseInt fail");
-                return null;
-            }
-        }
-        if (blOn.equals("")) {
-            intLevelOn = UserFilter.LEVEL_WITH_BT_DEFAULT;
-        } else {
-            try {
-                intLevelOn = Integer.parseInt(blOn);
-            } catch (NumberFormatException e) {
-                Log.v(TAG, "parseInt fail");
-                return null;
-            }
-        }
-
-        Switch camera = (Switch) findViewById(R.id.cameraSwitch);
-        Switch bt = (Switch) findViewById(R.id.btSwitch);
-        Switch battery = (Switch) findViewById(R.id.batterySwitch);
-        Switch audio = (Switch) findViewById(R.id.blockRecordAudioSwitch);
-
-        UserFilter userFilter = new UserFilter();
-        userFilter.levelNoBt = intLevelOff;
-        userFilter.levelWithBt = intLevelOn;
-
-        userFilter.blockCamera = camera.isChecked();
-        userFilter.blockBtStatus = bt.isChecked();
-        userFilter.blockBatteryLevel = battery.isChecked();
-        userFilter.blockRecordAudio = audio.isChecked();
-
-        return userFilter;
-    }
-
-    public static String[] generateIntentsArray(UserFilter userFilter) {
-        ArrayList<String> list = new ArrayList<String>();
-
-        if (userFilter.blockCamera) {
-            list.add(MediaStore.ACTION_IMAGE_CAPTURE);
-        }
-
-        if (userFilter.blockBtStatus) {
-            list.add(BluetoothAdapter.ACTION_STATE_CHANGED);
-        }
-
-        if (userFilter.blockBatteryLevel) {
-            list.add(Intent.ACTION_BATTERY_CHANGED);
-        }
-
-        if (userFilter.blockRecordAudio) {
-            list.add("android.permission.RECORD_AUDIO");
-        }
-
-        return list.toArray(new String[0]);
-    }
 
 }

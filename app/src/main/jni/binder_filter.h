@@ -6,11 +6,10 @@
 #define PICKY_BINDER_FILTER_H
 
 struct bf_user_filter {
-    int level_value_no_BT;
-    int level_value_with_BT;
-
-    char** intents;
-    int intents_len;
+    int action;
+    int uid;
+    char* message;
+    char* data;
 };
 
 #endif //PICKY_BINDER_FILTER_H

@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -44,62 +45,9 @@ int setup_dev_perm() {
     }
 }
 
-
 JNIEXPORT jstring JNICALL
-Java_edu_dartmouth_dwu_picky_MainActivity_nativeWriteUserFilter(JNIEnv *env, jobject instance,
-                                                                jobjectArray intents,
-                                                                jint level_noBT,
-                                                                jint level_withBT) {
-    char ret[300];
-    char str[50];
+Java_edu_dartmouth_dwu_picky_Policy_nativeSetUpPermissions(JNIEnv *env, jclass type) {
 
-    if (fd < 0) {
-        setup_already = 0;
-        setup_dev_perm();
-    }
-
-    strcpy(ret, "nativeWriteUserFilter:\n");
-
-    struct bf_user_filter user_filter;
-    user_filter.level_value_no_BT = (int) level_noBT;
-    user_filter.level_value_with_BT = (int) level_withBT;
-
-    int intents_length = (*env)->GetArrayLength(env, intents);
-    char* c_intents[intents_length];
-
-    for (int i=0; i<intents_length; i++) {
-        jstring string = (jstring) (*env)->GetObjectArrayElement(env, intents, i);
-        char *rawString = (char*) ((*env)->GetStringUTFChars(env, string, 0));
-        c_intents[i] = rawString;
-
-        sprintf(str, "\t%s\n", c_intents[i]);
-        strcat(ret, str);
-    }
-
-    user_filter.intents = c_intents;
-    user_filter.intents_len = intents_length;
-
-    // size_t write(int fildes, const void *buf, size_t nbytes);
-    int write_len = write(fd, &user_filter, sizeof(user_filter));
-
-    for (int i=0; i<intents_length; i++) {
-        jstring string = (jstring) (*env)->GetObjectArrayElement(env, intents, i);
-        (*env)->ReleaseStringUTFChars(env, string, c_intents[i]);
-    }
-
-    strcat(ret, "Opened driver, fd: ");
-    sprintf(str, "%d", fd);
-    strcat(ret, str);
-    strcat(ret, "\n");
-    strcat(ret, "writelen: ");
-    sprintf(str, "%d", write_len);
-    strcat(ret, str);
-    return (*env)->NewStringUTF(env, ret);
-}
-
-
-JNIEXPORT jstring JNICALL
-Java_edu_dartmouth_dwu_picky_MainActivity_nativeSetUpPermissions(JNIEnv *env, jobject instance) {
 
     int r = setup_dev_perm();
     if (r == -1) {
@@ -113,4 +61,65 @@ Java_edu_dartmouth_dwu_picky_MainActivity_nativeSetUpPermissions(JNIEnv *env, jo
     }
 
     return (*env)->NewStringUTF(env, "Setup success");
+}
+
+
+JNIEXPORT jstring JNICALL
+Java_edu_dartmouth_dwu_picky_Policy_nativeWriteFilterLine(JNIEnv *env, jclass type, jint action,
+                                                          jint uid, jstring message_,
+                                                          jstring data_) {
+    const char *message = (*env)->GetStringUTFChars(env, message_, 0);
+    const char *data = (*env)->GetStringUTFChars(env, data_, 0);
+
+    char ret[1024];
+    char str[128];
+
+    if (fd < 0) {
+        setup_already = 0;
+        setup_dev_perm();
+    }
+
+    strcpy(ret, "nativeWriteUserFilter:\n");
+
+    struct bf_user_filter user_filter;
+    user_filter.action = (int) action;
+    user_filter.uid = (int) uid;
+    user_filter.message = (char*) message;
+    user_filter.data = (char*) data;
+
+    // size_t write(int fildes, const void *buf, size_t nbytes);
+    int write_len = write(fd, &user_filter, sizeof(user_filter));
+
+    strcat(ret, "Opened driver, fd: ");
+    sprintf(str, "%d", fd);
+    strcat(ret, str);
+    strcat(ret, "\n");
+    strcat(ret, "writelen: ");
+    sprintf(str, "%d", write_len);
+    strcat(ret, str);
+
+    (*env)->ReleaseStringUTFChars(env, message_, message);
+    (*env)->ReleaseStringUTFChars(env, data_, data);
+
+    return (*env)->NewStringUTF(env, ret);
+}
+
+JNIEXPORT jstring JNICALL
+Java_edu_dartmouth_dwu_picky_Policy_nativeReadPolicy(JNIEnv *env, jclass type) {
+
+    int sizeRead = 1024;
+    char* returnValue = (char*) malloc(sizeRead+1);
+
+    if (fd < 0) {
+        setup_already = 0;
+        setup_dev_perm();
+    }
+
+    strcpy(returnValue, "empty");
+
+    // ssize_t read(int fd, void *buf, size_t count);
+    int len = read(fd, returnValue, sizeRead);
+    returnValue[len] = '\0';
+
+    return (*env)->NewStringUTF(env, returnValue);
 }
