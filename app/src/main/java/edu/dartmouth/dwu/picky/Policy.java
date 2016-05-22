@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.View;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 /**
@@ -66,14 +67,34 @@ public class Policy {
         //bt status: "BluetoothAdapter.ACTION_STATE_CHANGED"
     }
 
+    // for some reason calling nativeReadPolicy() twice gets "" on the second time...
+    // let's just get the app memory policy for now
+    public static String getPolicy() {
+        StringBuilder policy = new StringBuilder();
+
+        for (List<FilterLine> savedPolicy : MainActivity.savedPolicies) {
+            for (FilterLine filter : savedPolicy) {
+                policy.append(filter.message + ':' + filter.uid + ':' + filter.action + ":\n");
+            }
+        }
+
+        return policy.toString();
+    }
+
     // get policy from driver for this app session
     // format: message:uid:action:
     // returns -1 on error
-    public static int loadPolicy() {
-        String policy = nativeReadPolicy();
+    public static int loadPolicy(boolean fromDriver, String fromUser) {
+        String policy;
+
+        if (fromDriver) {
+            policy = nativeReadPolicy();
+        } else {
+            policy = fromUser;
+        }
         Log.i(TAG, policy);
 
-        if (policy.equals("empty")) {
+        if (policy == null || policy.equals("empty")) {
             return 0;
         }
 
@@ -110,4 +131,5 @@ public class Policy {
         scanner.close();
         return 0;
     }
+
 }

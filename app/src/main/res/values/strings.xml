@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Picky</string>
     <string name="action_settings">About</string>
+    <string name="action_export">Export Policy</string>
     <string name="title_activity_app">AppActivity</string>
 
     <!-- TODO: Remove or change this placeholder text -->

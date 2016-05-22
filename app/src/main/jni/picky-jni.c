@@ -121,5 +121,6 @@ Java_edu_dartmouth_dwu_picky_Policy_nativeReadPolicy(JNIEnv *env, jclass type) {
     int len = read(fd, returnValue, sizeRead);
     returnValue[len] = '\0';
 
+    free(returnValue);
     return (*env)->NewStringUTF(env, returnValue);
 }
