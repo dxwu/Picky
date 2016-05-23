@@ -2,6 +2,7 @@ package edu.dartmouth.dwu.picky;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -9,6 +10,7 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.TabLayout;
@@ -98,9 +100,6 @@ public class MainActivity extends AppCompatActivity {
         // get rid of left-gravity title text
         getSupportActionBar().setDisplayShowTitleEnabled(false);
 
-        String ret = Policy.nativeSetUpPermissions();
-        Log.i(TAG, ret);
-
         for (int i=0; i<Policy.messages.length; i++) {
             savedPolicies.add(new ArrayList<FilterLine>());
             blockButtons.add(new HashMap<Integer, ToggleButton>());
@@ -112,8 +111,32 @@ public class MainActivity extends AppCompatActivity {
 
         // load policy from binderfilter driver into memory
         if (firstLoad) {
+            int numTimesToTry = 5;
+            String ret = "";
+            for (int i=0; i<numTimesToTry; i++) {
+                ret = Policy.nativeSetUpPermissions();
+                Log.i(TAG, "nativeSetUpPermissions returned: " + ret);
+
+                if (ret.contains("success")) {
+                    break;
+                } else {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
+            if (!ret.contains("success")) {
+                Toast.makeText(this, "Error getting su permissions!", Toast.LENGTH_LONG).show();
+            }
+
             if (Policy.loadPolicy(true, null) == -1) {
                 Toast.makeText(this, "Error loading policy!", Toast.LENGTH_LONG).show();
+            }
+            if (Policy.nativeInitPolicyPersistFile() == -1) {
+                Toast.makeText(this, "Error initializing persistent policy file!", Toast.LENGTH_LONG).show();
+                Log.e(TAG, "Error initializing persistent policy file");
             }
             firstLoad = false;
         }

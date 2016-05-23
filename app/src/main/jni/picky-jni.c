@@ -7,19 +7,10 @@
 
 #include "binder_filter.h"
 
-int setup_already = 0;
 int fd = -1;
 
 // returns positive on success, negative on fail
 int setup_dev_perm() {
-    if (setup_already == 1) {
-        if (fd >= 0) {
-            return fd;
-        } else {
-            return -4;
-        }
-    }
-
     // enable binderfilter
     if (popen("su -c \"echo 1 > /sys/module/binder_filter/parameters/filter_enable\"", "r") == NULL) {
         return -1;
@@ -35,8 +26,6 @@ int setup_dev_perm() {
         return -3;
     }
 
-    setup_already = 1;
-
     fd = open("/dev/binderfilter", O_RDWR);
     if (fd >= 0) {
         return fd;
@@ -47,7 +36,6 @@ int setup_dev_perm() {
 
 JNIEXPORT jstring JNICALL
 Java_edu_dartmouth_dwu_picky_Policy_nativeSetUpPermissions(JNIEnv *env, jclass type) {
-
 
     int r = setup_dev_perm();
     if (r == -1) {
@@ -75,7 +63,6 @@ Java_edu_dartmouth_dwu_picky_Policy_nativeWriteFilterLine(JNIEnv *env, jclass ty
     char str[128];
 
     if (fd < 0) {
-        setup_already = 0;
         setup_dev_perm();
     }
 
@@ -111,7 +98,6 @@ Java_edu_dartmouth_dwu_picky_Policy_nativeReadPolicy(JNIEnv *env, jclass type) {
     char* returnValue = (char*) malloc(sizeRead+1);
 
     if (fd < 0) {
-        setup_already = 0;
         setup_dev_perm();
     }
 
@@ -123,4 +109,14 @@ Java_edu_dartmouth_dwu_picky_Policy_nativeReadPolicy(JNIEnv *env, jclass type) {
 
     free(returnValue);
     return (*env)->NewStringUTF(env, returnValue);
+}
+
+JNIEXPORT jint JNICALL
+Java_edu_dartmouth_dwu_picky_Policy_nativeInitPolicyPersistFile(JNIEnv *env, jclass type) {
+
+    if (popen("su -c \"if [ ! -f /data/local/tmp/bf.policy ]; then touch /data/local/tmp/bf.policy; chmod 777 /data/local/tmp/bf.policy; fi\"", "r") == NULL) {
+        return -1;
+    }
+
+    return 0;
 }

@@ -146,8 +146,8 @@ public class AppsActivity extends AppCompatActivity {
         String uniqueAppName = MainActivity.allApps.get(position);
         int uid = MainActivity.nameToUid.get(uniqueAppName);
 
-        Log.i(TAG, "blockButton: " + Boolean.toString(blockButton) + ", isChecked: " + isChecked + ", type: " +
-                type + ", pos: " + position + ", uid: " + uid);
+//        Log.i(TAG, "blockButton: " + Boolean.toString(blockButton) + ", isChecked: " + isChecked + ", type: " +
+//                type + ", pos: " + position + ", uid: " + uid);
 
         int action;
         if (blockButton) {

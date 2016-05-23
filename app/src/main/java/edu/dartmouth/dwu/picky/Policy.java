@@ -34,6 +34,7 @@ public class Policy {
     public static native String nativeWriteFilterLine(int action, int uid, String message, String data);
     public static native String nativeSetUpPermissions();
     public static native String nativeReadPolicy();
+    public static native int nativeInitPolicyPersistFile();
 
     static {
         System.loadLibrary("picky-jni");
@@ -92,7 +93,7 @@ public class Policy {
         } else {
             policy = fromUser;
         }
-        Log.i(TAG, policy);
+        Log.i(TAG, "loadPolicy: got policy:\n" + policy);
 
         if (policy == null || policy.equals("empty")) {
             return 0;
