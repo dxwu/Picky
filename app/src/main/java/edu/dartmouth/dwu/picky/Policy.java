@@ -21,6 +21,24 @@ public class Policy {
     public static final int MODIFY_ACTION = 3;
     public static final int UNMODIFY_ACTION = 4;
 
+    public static final int CONTEXT_NONE = 0;
+    public static final int CONTEXT_WIFI_STATE = 1;
+    public static final int CONTEXT_WIFI_SSID = 2;
+    public static final int CONTEXT_WIFI_NEARBY = 3;
+    public static final int CONTEXT_BT_STATE = 4;
+    public static final int CONTEXT_BT_CONNECTED_DEVICE = 5;
+    public static final int CONTEXT_BT_NEARBY_DEVICE = 6;
+    public static final int CONTEXT_LOCATION = 7;
+    public static final int CONTEXT_APP_INSTALLED = 8;
+    public static final int CONTEXT_APP_RUNNING = 9;
+    public static final int CONTEXT_DATE_DAY = 10;
+
+    public static final int CONTEXT_TYPE_INT = 1;
+    public static final int CONTEXT_TYPE_STRING = 2;
+
+    public static final int CONTEXT_STATE_ON = 1;
+    public static final int CONTEXT_STATE_OFF = 2;
+
     public static PolicyMessage[] messages = {
             new PolicyMessage("Camera", "MediaStore.ACTION_IMAGE_CAPTURE"),
             new PolicyMessage("Microphone", "android.permission.RECORD_AUDIO"),
@@ -28,10 +46,13 @@ public class Policy {
             new PolicyMessage("Modify Contacts", "android.permission.WRITE_CONTACTS")
     };
 
-    //http://ph0b.com/new-android-studio-ndk-support/
+    // Android NDK:
+    // http://ph0b.com/new-android-studio-ndk-support/
     // Android Studio->preferences->build,execution,deployment->build tools->gradle->use local gradle distrib
     // download gradle 2.10, ndk tools
     public static native String nativeWriteFilterLine(int action, int uid, String message, String data);
+    public static native int nativeWriteContextFilterLine(int action, int uid, String message, String data, int context, int contextType, int contextIntValue);
+    public static native int nativeWriteContextFilterLine(int action, int uid, String message, String data, int context, int contextType, String contextStringValue);
     public static native String nativeSetUpPermissions();
     public static native String nativeReadPolicy();
     public static native int nativeInitPolicyPersistFile();
@@ -40,20 +61,77 @@ public class Policy {
         System.loadLibrary("picky-jni");
     }
 
-    public static void setTempFilter(View view) {
-        String ret = nativeWriteFilterLine(BLOCK_ACTION, 10091, "com.google.android.location.internal.EXTRA_LOCATION_LIST", "");
-        Log.i(TAG, ret);
-    }
-
-    public static void setFilterLine(FilterLine filter) {
+    protected static void setFilterLine(FilterLine filter) {
         if (filter == null || filter.message == null) {
             return;
         }
-        Log.i(TAG, "setFilterLine: action: " + filter.action + ", uid: " + filter.uid +
-                ", message: " + filter.message + ", data: " + filter.data);
 
+        printFilterLine(filter);
         String ret = nativeWriteFilterLine(filter.action, filter.uid, filter.message, filter.data);
         //Log.i(TAG, ret);
+    }
+
+    protected static void setContextFilterLine(FilterLine filter) {
+        if (filter == null || filter.message == null) {
+            return;
+        }
+
+        printFilterLine(filter);
+
+        int writeLen = -1;
+//        if (filter.contextType == CONTEXT_TYPE_INT) {
+//            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
+//                    filter.data, filter.context, CONTEXT_TYPE_INT, filter.contextIntValue);
+//        } else if (filter.contextType == CONTEXT_TYPE_STRING) {
+//            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
+//                    filter.data, filter.context, CONTEXT_TYPE_STRING, filter.contextStringValue);
+//        } else {
+//            Log.e(TAG, "Bad context type argument to setContextFilterLine!");
+//            return;
+//        }
+//
+        Log.i(TAG, "setContextFilterLine: writeLen: " + writeLen);
+    }
+
+    protected static void removeContextFilterLine(String stringFilter) {
+        if (stringFilter == null) {
+            return;
+        }
+
+        FilterLine filter = MainActivity.savedRules.get(stringFilter);
+        if (filter == null) {
+            Log.e(TAG, "removeContextFilterLine: could not get filter for string " + stringFilter);
+            return;
+        }
+
+        // remove from app memory
+        MainActivity.savedRules.remove(stringFilter);
+
+        Log.i(TAG, "removing filter\n");
+        printFilterLine(filter);
+
+        int writeLen = -1;
+
+        // flip for remove()
+        if (filter.action == Policy.BLOCK_ACTION) {
+            filter.action = Policy.UNBLOCK_ACTION;
+        } else if (filter.action == Policy.MODIFY_ACTION) {
+            filter.action = Policy.UNMODIFY_ACTION;
+        }
+
+        // remove from kernel memory
+//        if (filter.contextType == CONTEXT_TYPE_INT) {
+//            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
+//                    filter.data, filter.context, CONTEXT_TYPE_INT, filter.contextIntValue);
+//        } else if (filter.contextType == CONTEXT_TYPE_STRING) {
+//            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
+//                    filter.data, filter.context, CONTEXT_TYPE_STRING, filter.contextStringValue);
+//        } else {
+//            Log.e(TAG, "Bad context type argument to setContextFilterLine!");
+//            return;
+//        }
+
+        Log.i(TAG, "setContextFilterLine: writeLen: " + writeLen);
     }
 
     public static String translateMessage(int messageType) {
@@ -83,7 +161,7 @@ public class Policy {
     }
 
     // get policy from driver for this app session
-    // format: message:uid:action:
+    // format: message:uid:action:context:context_type:context_val:
     // returns -1 on error
     public static int loadPolicy(boolean fromDriver, String fromUser) {
         String policy;
@@ -103,34 +181,92 @@ public class Policy {
         while (scanner.hasNextLine()) {
             String line = scanner.nextLine();
 
-            int endOfMessage = line.indexOf(':');
-            String message = line.substring(0, endOfMessage);
-
-            int endOfUid = line.indexOf(':', endOfMessage + 1);
-            String uidString = line.substring(endOfMessage + 1, endOfUid);
-
-            int endOfAction = line.indexOf(':', endOfUid + 1);
-            String actionString = line.substring(endOfUid + 1, endOfAction);
-
-            int uid = Integer.parseInt(uidString);
-            int action = Integer.parseInt(actionString);
+            FilterLine filter = parsePolicyLine(line);
+            if (filter == null) {
+                return -1;
+            }
             int messageType = -1;
             for (int i=0; i<messages.length; i++) {
-                if (message.equals(messages[i].filterMessage)) {
+                if (filter.message.equals(messages[i].filterMessage)) {
                     messageType = i;
                     break;
                 }
             }
-
             if (messageType == -1) {
                 return -1;
             }
 
-            FilterLine filter = new FilterLine(uid, action, message, "");
             MainActivity.savedPolicies.get(messageType).add(filter);
         }
         scanner.close();
         return 0;
+    }
+
+    public static FilterLine parsePolicyLine(String line) {
+        int endOfMessage = line.indexOf(':');
+        String message = line.substring(0, endOfMessage);
+
+        int endOfUid = line.indexOf(':', endOfMessage + 1);
+        String uidString = line.substring(endOfMessage + 1, endOfUid);
+
+        int endOfAction = line.indexOf(':', endOfUid + 1);
+        String actionString = line.substring(endOfUid + 1, endOfAction);
+
+        int endOfContext = line.indexOf(':', endOfAction + 1);
+        String contextString = line.substring(endOfAction + 1, endOfContext);
+
+        int uid = Integer.parseInt(uidString);
+        int action = Integer.parseInt(actionString);
+
+        FilterLine filter;
+        int context = Integer.parseInt(contextString);
+        if (context <= 0) {
+            filter = new FilterLine(uid, action, message, "");
+        } else {
+            int endOfContextType = line.indexOf(':', endOfContext + 1);
+            String contextTypeString = line.substring(endOfContext + 1, endOfContextType);
+            int contextType = Integer.parseInt(contextTypeString);
+
+            int contextIntValue = 0;
+            String contextStringValue = "";
+
+            if (contextType == Policy.CONTEXT_TYPE_INT) {
+                int endOfContextValue = line.indexOf(':', endOfContextType + 1);
+                String contextIntValueString = line.substring(endOfContextType + 1, endOfContextValue);
+                contextIntValue = Integer.parseInt(contextIntValueString);
+            } else if (contextType == Policy.CONTEXT_TYPE_STRING) {
+                int endOfContextValue = line.indexOf(':', endOfContextType + 1);
+                contextStringValue = line.substring(endOfContextType + 1, endOfContextValue);
+            } else {
+                Log.e(TAG, "loadPolicy: bad context type argument " + contextType);
+                return null;
+            }
+
+            filter = new FilterLine(uid, action, message, "", context, contextType, contextIntValue, contextStringValue);
+        }
+
+        return filter;
+    }
+
+    public static void printFilterLine(FilterLine filter) {
+        String contextString = "";
+        if (filter.context != 0) {
+            contextString += ", context: " + filter.context + ", contextType: "
+                    + filter.contextType + ", context value: ";
+            if (filter.contextType == CONTEXT_TYPE_INT) {
+                contextString += filter.contextIntValue;
+            } else if (filter.contextType == CONTEXT_TYPE_STRING) {
+                contextString += filter.contextStringValue;
+            } else {
+                contextString += "<INVALID TYPE>";
+            }
+        }
+        Log.i(TAG, "printFilterLine: action: " + filter.action +
+                        ", uid: " + filter.uid +
+                        ", message: " + filter.message +
+                        ", data: " + filter.data +
+                        contextString
+        );
     }
 
 }

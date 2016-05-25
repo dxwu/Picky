@@ -115,7 +115,7 @@ public class CustomArrayAdapter extends BaseAdapter implements ListAdapter {
                 if (allowButton.isChecked()) {
                     return;
                 }
-                AppsActivity.setAppResult(true, blockButton.isChecked(), type, position);
+                AppsActivity.setPolicyInfo(true, blockButton.isChecked(), type, position);
 
                 if (!blockButton.isChecked()) {
                     ArrayList<Integer> toSet =  MainActivity.blockButtonsToSet.get(type);
@@ -131,7 +131,7 @@ public class CustomArrayAdapter extends BaseAdapter implements ListAdapter {
                 if (blockButton.isChecked()) {
                     return;
                 }
-                int uid = AppsActivity.setAppResult(false, allowButton.isChecked(), type, position);
+                int uid = AppsActivity.setPolicyInfo(false, allowButton.isChecked(), type, position);
 
                 if (!allowButton.isChecked()) {
                     ArrayList<Integer> toSet =  MainActivity.allowButtonsToSet.get(type);

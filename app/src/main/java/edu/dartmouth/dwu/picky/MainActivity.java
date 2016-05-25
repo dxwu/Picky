@@ -8,17 +8,20 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.TabLayout;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.text.InputType;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -42,7 +45,9 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -55,6 +60,9 @@ public class MainActivity extends AppCompatActivity {
     public static HashMap<Integer, String> uidToName = null;
 
     private String filepath;
+    public static FloatingActionButton fab;
+    public static Context mContext;
+    public static ViewPager viewPager;
 
     // one for every kind of PolicyMessage
     // saves policy info for this app session
@@ -71,35 +79,80 @@ public class MainActivity extends AppCompatActivity {
     public static ArrayList<ArrayList<Integer>> allowButtonsToSet
             = new ArrayList<ArrayList<Integer>>(Policy.messages.length);
 
+    public static HashMap<String, FilterLine> savedRules
+            = new HashMap<String, FilterLine>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 importPolicy();
             }
         });
+        // get rid of left-gravity title text
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
 
+        getAllApps();
+        setUpTabs();
+        initSavedStates();
+
+        // load policy from binderfilter driver into memory
+        if (firstLoad) {
+            onFirstLoad();
+            firstLoad = false;
+        }
+    }
+
+    public void setUpTabs() {
         final TabLayout tabLayout = (TabLayout) findViewById(R.id.tab_layout);
         tabLayout.setTabGravity(TabLayout.GRAVITY_FILL);
 
-        final ViewPager viewPager = (ViewPager) findViewById(R.id.pager);
+        viewPager = (ViewPager) findViewById(R.id.pager);
         viewPager.setAdapter(new SectionPagerAdapter(getSupportFragmentManager()));
+        viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+            @Override
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+            }
+
+            @Override
+            public void onPageSelected(int position) {
+                if (position == 1) {
+                    fab.setImageDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.pencil_white));
+                    fab.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            CustomTabFragment.addContextRule();
+                        }
+                    });
+                } else {
+                    fab.setImageDrawable(ContextCompat.getDrawable(getApplicationContext(), android.R.drawable.ic_input_add));
+                    fab.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            importPolicy();
+                        }
+                    });
+                }
+            }
+        });
 
         tabLayout.addTab(tabLayout.newTab());
         tabLayout.addTab(tabLayout.newTab());
         tabLayout.addTab(tabLayout.newTab());
         tabLayout.setupWithViewPager(viewPager);
+    }
 
-        // get rid of left-gravity title text
-        getSupportActionBar().setDisplayShowTitleEnabled(false);
-
+    public void initSavedStates() {
         for (int i=0; i<Policy.messages.length; i++) {
             savedPolicies.add(new ArrayList<FilterLine>());
             blockButtons.add(new HashMap<Integer, ToggleButton>());
@@ -109,36 +162,36 @@ public class MainActivity extends AppCompatActivity {
             allowButtonsToSet.add(new ArrayList<Integer>());
         }
 
-        // load policy from binderfilter driver into memory
-        if (firstLoad) {
-            int numTimesToTry = 5;
-            String ret = "";
-            for (int i=0; i<numTimesToTry; i++) {
-                ret = Policy.nativeSetUpPermissions();
-                Log.i(TAG, "nativeSetUpPermissions returned: " + ret);
+        mContext = this;
+    }
 
-                if (ret.contains("success")) {
+    public void onFirstLoad() {
+        int numTimesToTry = 5;
+        String ret = "";
+        for (int i=0; i<numTimesToTry; i++) {
+            ret = Policy.nativeSetUpPermissions();
+            Log.i(TAG, "nativeSetUpPermissions returned: " + ret);
+
+            if (ret.contains("success")) {
+                break;
+            } else {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
                     break;
-                } else {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
                 }
             }
-            if (!ret.contains("success")) {
-                Toast.makeText(this, "Error getting su permissions!", Toast.LENGTH_LONG).show();
-            }
+        }
+        if (!ret.contains("success")) {
+            Toast.makeText(this, "Error getting su permissions!", Toast.LENGTH_LONG).show();
+        }
 
-            if (Policy.loadPolicy(true, null) == -1) {
-                Toast.makeText(this, "Error loading policy!", Toast.LENGTH_LONG).show();
-            }
-            if (Policy.nativeInitPolicyPersistFile() == -1) {
-                Toast.makeText(this, "Error initializing persistent policy file!", Toast.LENGTH_LONG).show();
-                Log.e(TAG, "Error initializing persistent policy file");
-            }
-            firstLoad = false;
+        if (Policy.loadPolicy(true, null) == -1) {
+            Toast.makeText(this, "Error loading policy!", Toast.LENGTH_LONG).show();
+        }
+        if (Policy.nativeInitPolicyPersistFile() == -1) {
+            Toast.makeText(this, "Error initializing persistent policy file!", Toast.LENGTH_LONG).show();
+            Log.e(TAG, "Error initializing persistent policy file");
         }
     }
 
@@ -174,6 +227,7 @@ public class MainActivity extends AppCompatActivity {
 
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT);
+        input.setGravity(Gravity.CENTER);
         dialog.setView(input);
 
         dialog.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
@@ -270,5 +324,50 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return exportPath.getAbsolutePath() + "/" + filename;
+    }
+
+    public void getAllApps() {
+        final PackageManager packageManager = getPackageManager();
+        MainActivity.installedApplications = packageManager.getInstalledApplications(PackageManager.GET_META_DATA);
+        MainActivity.allApps = new ArrayList<String>();
+        MainActivity.nameToUid = new HashMap<String, Integer>();
+        MainActivity.uidToName = new HashMap<Integer, String>();
+        HashSet<String> tempAllApps = new HashSet<String>();
+        HashSet<String> duplicates = new HashSet<>();
+
+        // check for duplicates
+        for (ApplicationInfo appInfo : MainActivity.installedApplications) {
+            String appName = appInfo.loadLabel(packageManager).toString();
+            if (tempAllApps.contains(appName)) {
+                duplicates.add(appName);
+            }
+            tempAllApps.add(appName);
+        }
+
+        boolean systemAppSet = false;
+        for (ApplicationInfo appInfo : MainActivity.installedApplications) {
+            String appName = appInfo.loadLabel(packageManager).toString();
+
+            // system uid - multiple apps have this uid
+            // only add one
+            if (appInfo.uid == 1000) {
+                if (systemAppSet) {
+                    continue;
+                }
+                systemAppSet = true;
+            }
+
+            if (duplicates.contains(appName)) {
+                MainActivity.allApps.add(appInfo.packageName);
+                MainActivity.nameToUid.put(appInfo.packageName, appInfo.uid);
+                MainActivity.uidToName.put(appInfo.uid, appInfo.packageName);
+            } else {
+                MainActivity.allApps.add(appName);
+                MainActivity.nameToUid.put(appName, appInfo.uid);
+                MainActivity.uidToName.put(appInfo.uid, appName);
+            }
+        }
+
+        Collections.sort(MainActivity.allApps);
     }
 }

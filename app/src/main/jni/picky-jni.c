@@ -51,44 +51,14 @@ Java_edu_dartmouth_dwu_picky_Policy_nativeSetUpPermissions(JNIEnv *env, jclass t
     return (*env)->NewStringUTF(env, "Setup success");
 }
 
+JNIEXPORT jint JNICALL
+Java_edu_dartmouth_dwu_picky_Policy_nativeInitPolicyPersistFile(JNIEnv *env, jclass type) {
 
-JNIEXPORT jstring JNICALL
-Java_edu_dartmouth_dwu_picky_Policy_nativeWriteFilterLine(JNIEnv *env, jclass type, jint action,
-                                                          jint uid, jstring message_,
-                                                          jstring data_) {
-    const char *message = (*env)->GetStringUTFChars(env, message_, 0);
-    const char *data = (*env)->GetStringUTFChars(env, data_, 0);
-
-    char ret[1024];
-    char str[128];
-
-    if (fd < 0) {
-        setup_dev_perm();
+    if (popen("su -c \"if [ ! -f /data/local/tmp/bf.policy ]; then touch /data/local/tmp/bf.policy; chmod 777 /data/local/tmp/bf.policy; fi\"", "r") == NULL) {
+        return -1;
     }
 
-    strcpy(ret, "nativeWriteUserFilter:\n");
-
-    struct bf_user_filter user_filter;
-    user_filter.action = (int) action;
-    user_filter.uid = (int) uid;
-    user_filter.message = (char*) message;
-    user_filter.data = (char*) data;
-
-    // size_t write(int fildes, const void *buf, size_t nbytes);
-    int write_len = write(fd, &user_filter, sizeof(user_filter));
-
-    strcat(ret, "Opened driver, fd: ");
-    sprintf(str, "%d", fd);
-    strcat(ret, str);
-    strcat(ret, "\n");
-    strcat(ret, "writelen: ");
-    sprintf(str, "%d", write_len);
-    strcat(ret, str);
-
-    (*env)->ReleaseStringUTFChars(env, message_, message);
-    (*env)->ReleaseStringUTFChars(env, data_, data);
-
-    return (*env)->NewStringUTF(env, ret);
+    return 0;
 }
 
 JNIEXPORT jstring JNICALL
@@ -111,12 +81,98 @@ Java_edu_dartmouth_dwu_picky_Policy_nativeReadPolicy(JNIEnv *env, jclass type) {
     return (*env)->NewStringUTF(env, returnValue);
 }
 
-JNIEXPORT jint JNICALL
-Java_edu_dartmouth_dwu_picky_Policy_nativeInitPolicyPersistFile(JNIEnv *env, jclass type) {
+JNIEXPORT jstring JNICALL
+Java_edu_dartmouth_dwu_picky_Policy_nativeWriteFilterLine(JNIEnv *env, jclass type, jint action,
+                                                          jint uid, jstring message_,
+                                                          jstring data_) {
+    const char *message = (*env)->GetStringUTFChars(env, message_, 0);
+    const char *data = (*env)->GetStringUTFChars(env, data_, 0);
 
-    if (popen("su -c \"if [ ! -f /data/local/tmp/bf.policy ]; then touch /data/local/tmp/bf.policy; chmod 777 /data/local/tmp/bf.policy; fi\"", "r") == NULL) {
-        return -1;
+    char ret[1024];
+    char str[128];
+
+    if (fd < 0) {
+        setup_dev_perm();
     }
 
-    return 0;
+    strcpy(ret, "nativeWriteUserFilter:\n");
+
+    struct bf_user_filter user_filter;
+    user_filter.action = (int) action;
+    user_filter.uid = (int) uid;
+    user_filter.message = (char*) message;
+    user_filter.data = (char*) data;
+    user_filter.context = 0;
+
+    // size_t write(int fildes, const void *buf, size_t nbytes);
+    int write_len = write(fd, &user_filter, sizeof(user_filter));
+
+    strcat(ret, "Opened driver, fd: ");
+    sprintf(str, "%d", fd);
+    strcat(ret, str);
+    strcat(ret, "\n");
+    strcat(ret, "writelen: ");
+    sprintf(str, "%d", write_len);
+    strcat(ret, str);
+
+    (*env)->ReleaseStringUTFChars(env, message_, message);
+    (*env)->ReleaseStringUTFChars(env, data_, data);
+
+    return (*env)->NewStringUTF(env, ret);
+}
+
+// overloaded with int value
+JNIEXPORT jint JNICALL
+Java_edu_dartmouth_dwu_picky_Policy_nativeWriteContextFilterLine__IILjava_lang_String_2Ljava_lang_String_2III(
+        JNIEnv *env, jclass type, jint action, jint uid, jstring message_, jstring data_,
+        jint context, jint contextType, jint contextIntValue) {
+    const char *message = (*env)->GetStringUTFChars(env, message_, 0);
+    const char *data = (*env)->GetStringUTFChars(env, data_, 0);
+
+    if (fd < 0) {
+        setup_dev_perm();
+    }
+
+    struct bf_user_filter user_filter;
+    user_filter.action = (int) action;
+    user_filter.uid = (int) uid;
+    user_filter.message = (char*) message;
+    user_filter.data = (char*) data;
+    user_filter.context = (int) context;
+    user_filter.context_type = (int) contextType;
+    user_filter.context_int_value = (int) contextIntValue;
+
+    int write_len = write(fd, &user_filter, sizeof(user_filter));
+
+    (*env)->ReleaseStringUTFChars(env, message_, message);
+    (*env)->ReleaseStringUTFChars(env, data_, data);
+
+    return write_len;
+}
+
+// overloaded with string value
+JNIEXPORT jint JNICALL
+Java_edu_dartmouth_dwu_picky_Policy_nativeWriteContextFilterLine__IILjava_lang_String_2Ljava_lang_String_2IILjava_lang_String_2(
+        JNIEnv *env, jclass type, jint action, jint uid, jstring message_, jstring data_,
+        jint context, jint contextType, jstring contextStringValue_) {
+    const char *message = (*env)->GetStringUTFChars(env, message_, 0);
+    const char *data = (*env)->GetStringUTFChars(env, data_, 0);
+    const char *contextStringValue = (*env)->GetStringUTFChars(env, contextStringValue_, 0);
+
+    struct bf_user_filter user_filter;
+    user_filter.action = (int) action;
+    user_filter.uid = (int) uid;
+    user_filter.message = (char*) message;
+    user_filter.data = (char*) data;
+    user_filter.context = (int) context;
+    user_filter.context_type = (int) contextType;
+    user_filter.context_string_value = (char*) contextStringValue;
+
+    int write_len = write(fd, &user_filter, sizeof(user_filter));
+
+    (*env)->ReleaseStringUTFChars(env, message_, message);
+    (*env)->ReleaseStringUTFChars(env, data_, data);
+    (*env)->ReleaseStringUTFChars(env, contextStringValue_, contextStringValue);
+
+    return write_len;
 }

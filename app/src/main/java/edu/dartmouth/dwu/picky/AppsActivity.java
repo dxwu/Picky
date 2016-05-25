@@ -60,54 +60,11 @@ public class AppsActivity extends AppCompatActivity {
             messageTitle.setText(Policy.messages[type].displayMessage);
         }
 
-        final PackageManager packageManager = getPackageManager();
-        MainActivity.installedApplications = packageManager.getInstalledApplications(PackageManager.GET_META_DATA);
-
-        MainActivity.allApps = new ArrayList<String>();
-        MainActivity.nameToUid = new HashMap<String, Integer>();
-        MainActivity.uidToName = new HashMap<Integer, String>();
-        HashSet<String> tempAllApps = new HashSet<String>();
-        HashSet<String> duplicates = new HashSet<>();
-
-        // check for duplicates
-        for (ApplicationInfo appInfo : MainActivity.installedApplications) {
-            String appName = appInfo.loadLabel(packageManager).toString();
-            if (tempAllApps.contains(appName)) {
-                duplicates.add(appName);
-            }
-            tempAllApps.add(appName);
-        }
-
-        boolean systemAppSet = false;
-        for (ApplicationInfo appInfo : MainActivity.installedApplications) {
-            String appName = appInfo.loadLabel(packageManager).toString();
-
-            // system uid - multiple apps have this uid
-            // only add one
-            if (appInfo.uid == 1000) {
-                if (systemAppSet) {
-                    continue;
-                }
-                systemAppSet = true;
-            }
-
-            if (duplicates.contains(appName)) {
-                MainActivity.allApps.add(appInfo.packageName);
-                MainActivity.nameToUid.put(appInfo.packageName, appInfo.uid);
-                MainActivity.uidToName.put(appInfo.uid, appInfo.packageName);
-            } else {
-                MainActivity.allApps.add(appName);
-                MainActivity.nameToUid.put(appName, appInfo.uid);
-                MainActivity.uidToName.put(appInfo.uid, appName);
-            }
-        }
-
         populateList(type);
     }
 
     private void populateList(int type) {
         ListView lv = (ListView) findViewById(R.id.AppsListView);
-        Collections.sort(MainActivity.allApps);
         adapter = new CustomArrayAdapter(MainActivity.allApps, this, type);
 
         // set saved policy
@@ -142,7 +99,7 @@ public class AppsActivity extends AppCompatActivity {
         lv.setAdapter(adapter);
     }
 
-    public static int setAppResult(boolean blockButton, boolean isChecked, int type, int position) {
+    public static int setPolicyInfo(boolean blockButton, boolean isChecked, int type, int position) {
         String uniqueAppName = MainActivity.allApps.get(position);
         int uid = MainActivity.nameToUid.get(uniqueAppName);
 

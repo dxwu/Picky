@@ -10,6 +10,11 @@ struct bf_user_filter {
     int uid;
     char* message;
     char* data;
+
+    int context;
+    int context_type;
+    int context_int_value;
+    char* context_string_value;
 };
 
 #endif //PICKY_BINDER_FILTER_H

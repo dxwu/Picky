@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/rulesListId">
+
+    <Button android:text="X"
+        android:textColor="#FFF" android:background="@drawable/round_button_background"
+        android:layout_height="25dp"
+        android:layout_width="25dp" android:textSize="12sp" android:textStyle="bold"
+        android:layout_gravity="right"
+        android:id="@+id/rulesListRowButton"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/rule_list_item_string"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_alignParentLeft="true"
+        android:paddingLeft="20dp"
+
+        android:textSize="25sp"
+        />
+
+</LinearLayout>

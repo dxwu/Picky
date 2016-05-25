@@ -36,6 +36,15 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="edu.dartmouth.dwu.picky.AppsActivity" />
         </activity>
+        <activity
+            android:name=".ContextActivity"
+            android:label="@string/title_activity_context"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="edu.dartmouth.dwu.picky.MainActivity" />
+        </activity>
     </application>
 
 </manifest>

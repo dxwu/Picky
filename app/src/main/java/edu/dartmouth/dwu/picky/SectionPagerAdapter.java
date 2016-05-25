@@ -3,6 +3,7 @@ package edu.dartmouth.dwu.picky;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.util.Log;
 
 /**
  * Created by dwu on 5/19/16.
