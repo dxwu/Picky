@@ -36,17 +36,20 @@ public class ContextActivity extends AppCompatActivity {
     private static final String actionActionDefault = "Action";
 
     private Spinner sContextValue, sContextMatches, sContextMatchesValue;
-    private String[] contextValuesArray = {contextValueDefault, "Wifi state", "Wifi ssid", "Bluetooth state"};
-    private String[] contextMatchesArray = {contextMatchesDefault, "Status", "Matches"};
-    private String[] contextMatchesValueArray = {contextMatchesValueDefault, "On", "Off", "Enter value"};
+    private final String[] contextValuesArray = {contextValueDefault, "Wifi state", "Wifi ssid", "Bluetooth state"};
+    private final String[] contextMatchesArray = {contextMatchesDefault, "Status", "Matches"};
+    private final String[] contextMatchesValueArray = {contextMatchesValueDefault, "On", "Off", "Enter value"};
 
     private Spinner sActionMessage, sActionUid, sActionAction;
     private ArrayList<String> actionMessagesArray = new ArrayList<>();
     private ArrayList<String> actionUidsArray = new ArrayList<>();
-    private String[] actionActionsArray = {actionActionDefault, "Block", "Unblock", "Modify", "Unmodify"};
+    //private String[] actionActionsArray = {actionActionDefault, "Block", "Unblock", "Modify", "Unmodify"};
+    private final String[] actionActionsArray = {actionActionDefault, "Block", "Modify"};
 
     private ArrayAdapter<String> contextDataAdapter;
+    private ArrayAdapter<String> actionMessageAdapter;
     private final int positionOfCustomValue = 3;
+    private int positionOfCustomAction;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,10 +104,12 @@ public class ContextActivity extends AppCompatActivity {
         for (PolicyMessage pm : Policy.messages) {
             actionMessagesArray.add(pm.displayMessage);
         }
-        ArrayAdapter<String> dataAdapter4 = new ArrayAdapter<>(this,
+        actionMessagesArray.add("Enter value");
+        positionOfCustomAction = actionMessagesArray.size() - 1;
+        actionMessageAdapter = new ArrayAdapter<>(this,
                 R.layout.spiner_tv_layout, actionMessagesArray);
-        dataAdapter4.setDropDownViewResource(R.layout.spiner_tv_layout);
-        sActionMessage.setAdapter(dataAdapter4);
+        actionMessageAdapter.setDropDownViewResource(R.layout.spiner_tv_layout);
+        sActionMessage.setAdapter(actionMessageAdapter);
 
         // action uids
         actionUidsArray.add(actionUidDefault);
@@ -125,7 +130,20 @@ public class ContextActivity extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position == positionOfCustomValue) {
-                    promptUserForString(position);
+                    promptUserForString(true);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // custom action value
+        sActionMessage.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == positionOfCustomAction) {
+                    promptUserForString(false);
                 }
             }
 
@@ -134,7 +152,7 @@ public class ContextActivity extends AppCompatActivity {
         });
     }
 
-    public void promptUserForString(final int position) {
+    public void promptUserForString(final boolean isContext) {
         AlertDialog.Builder dialog = new AlertDialog.Builder(this);
 
         dialog.setTitle("Custom value:");
@@ -146,14 +164,28 @@ public class ContextActivity extends AppCompatActivity {
 
         dialog.setPositiveButton("enter", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
-                Spinner s = (Spinner) findViewById(R.id.spinnerContextMatchesValue);
+                Spinner s;
+
+                if (isContext) {
+                    s = (Spinner) findViewById(R.id.spinnerContextMatchesValue);
+                } else {
+                    s = (Spinner) findViewById(R.id.spinnerMessage);
+                }
+
                 String val = input.getText().toString();
                 if (val == null) {
                     val = "";
                 }
-                contextMatchesValueArray[positionOfCustomValue] = val;
-                contextDataAdapter.notifyDataSetChanged();
-                s.setSelection(positionOfCustomValue);
+
+                if (isContext) {
+                    contextMatchesValueArray[positionOfCustomValue] = val;
+                    contextDataAdapter.notifyDataSetChanged();
+                    s.setSelection(positionOfCustomValue);
+                } else {
+                    actionMessagesArray.set(positionOfCustomAction, val);
+                    actionMessageAdapter.notifyDataSetChanged();
+                    s.setSelection(positionOfCustomAction);
+                }
             }
         });
         dialog.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -164,6 +196,71 @@ public class ContextActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    public static String generateContextDisplayString(String context, String contextComparator, String contextValue,
+                                               String actionValue, String actionApp, String actionAction) {
+        return "When " + context.toLowerCase() + " " + contextComparator.toLowerCase() + " \"" +
+                contextValue + "\", " + actionAction.toLowerCase() + " <" + actionValue + "> for app " + actionApp;
+    }
+    public static String generateContextDisplayString(FilterLine filter) {
+        StringBuilder ret = new StringBuilder();
+        ret.append("When ");
+
+        String contextString = "<unknown context>";
+        if (filter.context == Policy.CONTEXT_WIFI_STATE) {
+            contextString = "wifi state";
+        } else if (filter.context == Policy.CONTEXT_WIFI_SSID) {
+            contextString = "wifi ssid";
+        } else if (filter.context == Policy.CONTEXT_BT_STATE) {
+            contextString = "bluetooth state";
+        }
+        ret.append(contextString);
+
+        if (filter.contextType == Policy.CONTEXT_TYPE_INT) {
+            ret.append(" status");
+            ret.append(" \"");
+            if (filter.contextIntValue == Policy.CONTEXT_STATE_ON) {
+                ret.append("On");
+            } else if (filter.contextIntValue == Policy.CONTEXT_STATE_OFF) {
+                ret.append("Off");
+            } else {
+                ret.append("<unknown state>");
+            }
+            ret.append("\", ");
+        } else if (filter.contextType == Policy.CONTEXT_TYPE_STRING) {
+            ret.append(" matches");
+            ret.append(" \"");
+            ret.append(filter.contextStringValue);
+            ret.append("\", ");
+        } else {
+            ret.append(" <unknown comparator>");
+        }
+
+        if (filter.action == Policy.BLOCK_ACTION) {ret.append("block");}
+        if (filter.action == Policy.UNBLOCK_ACTION) {ret.append("unblock");}
+        if (filter.action == Policy.MODIFY_ACTION) {ret.append("modify");}
+        if (filter.action == Policy.UNMODIFY_ACTION) {ret.append("unmodify");}
+
+        ret.append(" <");
+        String display = "";
+        for (int i=0; i<Policy.messages.size(); i++) {
+            PolicyMessage pm = Policy.messages.get(i);
+            if (filter.message.equals(pm.filterMessage)) {
+                display = pm.displayMessage;
+            }
+        }
+        if (display.equals("")) {
+            // this is a custom message that the user established
+            ret.append(filter.message);
+        } else {
+            ret.append(display);
+        }
+        ret.append("> for app");
+
+        ret.append(MainActivity.uidToName.get(filter.uid));
+
+        return ret.toString();
+    }
+
     public void saveRule() {
         String contextType = sContextValue.getSelectedItem().toString();
         String contextComparator = sContextMatches.getSelectedItem().toString();
@@ -172,8 +269,8 @@ public class ContextActivity extends AppCompatActivity {
         String actionApp = sActionUid.getSelectedItem().toString();
         String actionAction = sActionAction.getSelectedItem().toString();
 
-        String ruleString = "When " + contextType.toLowerCase() + " " + contextComparator.toLowerCase() + " \"" +
-                contextValue + "\", " + actionAction.toLowerCase() + " <" + actionValue + "> for app " + actionApp ;
+        String ruleString = generateContextDisplayString(contextType, contextComparator, contextValue,
+                actionValue, actionApp, actionAction);
         Log.i(TAG, "saveRule: " + ruleString);
 
         if (validateRule(contextType, contextComparator, contextValue,
@@ -206,14 +303,19 @@ public class ContextActivity extends AppCompatActivity {
 
         int intApp = MainActivity.nameToUid.get(actionApp);
         int intActionAction = -1;
-        String stringActionMessage = "";
 
-        for (int i=0; i<Policy.messages.length; i++) {
-            PolicyMessage pm = Policy.messages[i];
+        String stringActionMessage = "";
+        for (int i=0; i<Policy.messages.size(); i++) {
+            PolicyMessage pm = Policy.messages.get(i);
             if (actionValue.equals(pm.displayMessage)) {
                 stringActionMessage = pm.filterMessage;
             }
         }
+        if (stringActionMessage.equals("")) {
+            // custom value
+            stringActionMessage = actionMessagesArray.get(actionMessagesArray.size()-1);
+        }
+
         if (actionAction.equals("Block")) {intActionAction = Policy.BLOCK_ACTION;}
         if (actionAction.equals("Unblock")) {intActionAction = Policy.UNBLOCK_ACTION;}
         if (actionAction.equals("Modify")) {intActionAction = Policy.MODIFY_ACTION;}
@@ -225,6 +327,7 @@ public class ContextActivity extends AppCompatActivity {
 
         MainActivity.savedRules.put(ruleString, filter);
         CustomTabFragment.adapter.notifyDataSetChanged();
+        CustomTabFragment.adapter.updateList();
 
         // go back to Custom Tab view
         finish();
@@ -304,8 +407,25 @@ public class ContextActivity extends AppCompatActivity {
             ret = false;
         }
 
+        // custom action
+        int flag = -1;
+        for (int i=0; i<Policy.messages.size(); i++) {
+            PolicyMessage pm = Policy.messages.get(i);
+            if (actionValue.equals(pm.displayMessage)) {
+                flag = 0;
+            }
+        }
+        if (flag == -1) {
+            // if custom action, don't allow modify or unmodify
+            if (actionAction.equals("Modify") || actionAction.equals("Unmodify")) {
+                retString.append("Custom action message with Modify or Unmodify action currently unsupported.\n");
+                ret = false;
+            }
+        }
+
         if (ret == false) {
             Toast.makeText(this, retString.toString(), Toast.LENGTH_LONG).show();
+            return false;
         }
         return true;
     }

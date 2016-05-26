@@ -64,8 +64,4 @@ public class CustomTabFragment extends Fragment {
         Intent intent = new Intent(MainActivity.mContext, ContextActivity.class);
         MainActivity.mContext.startActivity(intent);
     }
-
-    public static void removeContextRule() {
-
-    }
 }

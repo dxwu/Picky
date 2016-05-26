@@ -57,7 +57,7 @@ public class AppsActivity extends AppCompatActivity {
         if (type == -1) {
             messageTitle.setText("Error: incorrect message type");
         } else {
-            messageTitle.setText(Policy.messages[type].displayMessage);
+            messageTitle.setText(Policy.messages.get(type).displayMessage);
         }
 
         populateList(type);

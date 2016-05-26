@@ -2,6 +2,7 @@ package edu.dartmouth.dwu.picky;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.KeyguardManager;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
@@ -28,6 +29,7 @@ import android.view.MenuItem;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -68,16 +70,16 @@ public class MainActivity extends AppCompatActivity {
     // saves policy info for this app session
     // have to store them here because tabs and app activities may be stopped
     public static List<List<FilterLine>> savedPolicies
-            = new ArrayList<>(Policy.messages.length);
+            = new ArrayList<>(Policy.messages.size());
     public static List<HashMap<Integer, ToggleButton>> blockButtons
-            = new ArrayList<>(Policy.messages.length);
+            = new ArrayList<>(Policy.messages.size());
     public static List<HashMap<Integer, ToggleButton>> allowButtons
-            = new ArrayList<>(Policy.messages.length);
+            = new ArrayList<>(Policy.messages.size());
 
     public static ArrayList<ArrayList<Integer>> blockButtonsToSet
-            = new ArrayList<ArrayList<Integer>>(Policy.messages.length);
+            = new ArrayList<ArrayList<Integer>>(Policy.messages.size());
     public static ArrayList<ArrayList<Integer>> allowButtonsToSet
-            = new ArrayList<ArrayList<Integer>>(Policy.messages.length);
+            = new ArrayList<ArrayList<Integer>>(Policy.messages.size());
 
     public static HashMap<String, FilterLine> savedRules
             = new HashMap<String, FilterLine>();
@@ -85,6 +87,17 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // require secure lock screen
+        KeyguardManager km = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+        if (!km.isDeviceSecure()) {
+            TextView t = new TextView(this);
+            t.setGravity(Gravity.CENTER);
+            t.setText("Please set a secure PIN or password to use Picky.");
+            setContentView(t);
+            return;
+        }
+
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -92,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                importPolicy();
+                addNewPolicyMessage();
             }
         });
         // get rid of left-gravity title text
@@ -152,14 +165,18 @@ public class MainActivity extends AppCompatActivity {
         tabLayout.setupWithViewPager(viewPager);
     }
 
-    public void initSavedStates() {
-        for (int i=0; i<Policy.messages.length; i++) {
-            savedPolicies.add(new ArrayList<FilterLine>());
-            blockButtons.add(new HashMap<Integer, ToggleButton>());
-            allowButtons.add(new HashMap<Integer, ToggleButton>());
+    public static void addNewListsToSavedStates() {
+        savedPolicies.add(new ArrayList<FilterLine>());
+        blockButtons.add(new HashMap<Integer, ToggleButton>());
+        allowButtons.add(new HashMap<Integer, ToggleButton>());
 
-            blockButtonsToSet.add(new ArrayList<Integer>());
-            allowButtonsToSet.add(new ArrayList<Integer>());
+        blockButtonsToSet.add(new ArrayList<Integer>());
+        allowButtonsToSet.add(new ArrayList<Integer>());
+    }
+
+    public void initSavedStates() {
+        for (int i=0; i<Policy.messages.size(); i++) {
+            addNewListsToSavedStates();
         }
 
         mContext = this;
@@ -215,8 +232,60 @@ public class MainActivity extends AppCompatActivity {
             }
             return true;
         }
+        if (item.getItemId() == R.id.action_import) {
+            importPolicy();
+        }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public void addNewPolicyMessage() {
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this);
+
+        dialog.setTitle("Add new policy message type.");
+        dialog.setMessage("Specify message to block (strstr).\n");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+
+//        final EditText displayText = new EditText(this);
+//        displayText.setHint("Display Message");
+//        displayText.setInputType(InputType.TYPE_CLASS_TEXT);
+//        displayText.setGravity(Gravity.CENTER);
+//        layout.addView(displayText);
+
+        final EditText filterText = new EditText(this);
+        filterText.setHint("Filter (strstr) Message");
+        filterText.setInputType(InputType.TYPE_CLASS_TEXT);
+        filterText.setGravity(Gravity.CENTER);
+        layout.addView(filterText);
+
+        dialog.setView(layout);
+
+        dialog.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                //String display = displayText.getText().toString();
+                String filter = filterText.getText().toString();
+                addNewPolicyMessageToSavedStates(filter);
+            }
+        });
+        dialog.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+            }
+        });
+
+        dialog.show();
+    }
+
+    public static void addNewPolicyMessageToSavedStates(String filter) {
+        PolicyMessage pm = new PolicyMessage(filter, filter);
+        Policy.messages.add(pm);
+        addNewListsToSavedStates();
+
+        if (DefaultTabFragment.arrayAdapter != null) {
+            DefaultTabFragment.arrayAdapter.notifyDataSetChanged();
+            DefaultTabFragment.resetList();
+        }
     }
 
     public void importPolicy() {
@@ -284,7 +353,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // clear app policy
-        for (int i=0; i<Policy.messages.length; i++) {
+        for (int i=0; i<Policy.messages.size(); i++) {
             savedPolicies.get(i).clear();
             blockButtonsToSet.get(i).clear();
             allowButtonsToSet.get(i).clear();

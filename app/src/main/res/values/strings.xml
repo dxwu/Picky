@@ -2,10 +2,9 @@
     <string name="app_name">Picky</string>
     <string name="action_settings">About</string>
     <string name="action_export">Export Policy</string>
+    <string name="action_import">Import Policy</string>
     <string name="title_activity_app">AppActivity</string>
 
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="title_activity_apps">AppsActivity</string>
     <string name="title_activity_modify">ModifyActivity</string>
     <string name="title_activity_context">ContextActivity</string>

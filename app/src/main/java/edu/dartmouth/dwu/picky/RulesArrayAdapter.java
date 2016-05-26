@@ -56,7 +56,7 @@ public class RulesArrayAdapter extends BaseAdapter implements ListAdapter {
         cancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                Policy.removeContextFilterLine(list.get(position));
                 notifyDataSetChanged();
             }
         });
@@ -64,4 +64,9 @@ public class RulesArrayAdapter extends BaseAdapter implements ListAdapter {
         return view;
     }
 
+    public void updateList() {
+        ArrayList<String> rules = new ArrayList<>();
+        rules.addAll(MainActivity.savedRules.keySet());
+        this.list = rules;
+    }
 }

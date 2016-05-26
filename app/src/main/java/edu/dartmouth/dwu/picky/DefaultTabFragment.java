@@ -25,19 +25,22 @@ import java.util.List;
 
 public class DefaultTabFragment extends Fragment {
     private static final String TAG = "Picky";
+    public static ArrayAdapter<String> arrayAdapter;
+    public static View mView;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_default_tab, container, false);
+        mView = view;
 
         ArrayList<String> displayMessages= new ArrayList<String>();
         for (PolicyMessage pm : Policy.messages) {
             displayMessages.add(pm.displayMessage);
         }
 
-        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(
+        arrayAdapter = new ArrayAdapter<String>(
                 getContext(),
                 android.R.layout.simple_list_item_1,
                 displayMessages );
@@ -48,7 +51,7 @@ public class DefaultTabFragment extends Fragment {
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (id < 0 || id > Policy.messages.length) {
+                if (id < 0 || id > Policy.messages.size()) {
                     return;
                 }
 
@@ -81,6 +84,21 @@ public class DefaultTabFragment extends Fragment {
         });
 
         return view;
+    }
+
+    public static void resetList() {
+        ArrayList<String> displayMessages= new ArrayList<String>();
+        for (PolicyMessage pm : Policy.messages) {
+            displayMessages.add(pm.displayMessage);
+        }
+
+        arrayAdapter = new ArrayAdapter<String>(
+                MainActivity.mContext,
+                android.R.layout.simple_list_item_1,
+                displayMessages );
+
+        ListView list = (ListView) mView.findViewById(R.id.MessagesList);
+        list.setAdapter(arrayAdapter);
     }
 
 

@@ -90,7 +90,14 @@ public class CustomArrayAdapter extends BaseAdapter implements ListAdapter {
         View view = convertView;
         if (view == null) {
             LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            view = inflater.inflate(R.layout.app_list_row, null);
+
+            String typeOfMessage = Policy.messages.get(type).filterMessage;
+            if (typeOfMessage.equals("android.permission.CAMERA") || typeOfMessage.equals("android.permission.RECORD_AUDIO")) {
+                view = inflater.inflate(R.layout.app_list_row, null);
+            } else {
+                view = inflater.inflate(R.layout.apps_list_row_no_modify, null);
+            }
+
         }
 
         final TextView listItemText = (TextView) view.findViewById(R.id.list_item_string);
@@ -104,57 +111,60 @@ public class CustomArrayAdapter extends BaseAdapter implements ListAdapter {
         blockButton.setOnCheckedChangeListener(bToggleButtonChangeListener);
         blockButton.setChecked(blockCheckedPositions.get(position));
 
-        // set the tag so we can identify the correct row in the listener
-        allowButton.setTag(Integer.valueOf(position));
-        allowButton.setOnCheckedChangeListener(aToggleButtonChangeListener);
-        allowButton.setChecked(allowCheckedPositions.get(position));
-
         blockButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (allowButton.isChecked()) {
+                if (allowButton != null && allowButton.isChecked()) {
                     return;
                 }
                 AppsActivity.setPolicyInfo(true, blockButton.isChecked(), type, position);
 
                 if (!blockButton.isChecked()) {
-                    ArrayList<Integer> toSet =  MainActivity.blockButtonsToSet.get(type);
-                   if (toSet.contains(position)) {
-                       toSet.remove(toSet.indexOf(position));
-                   }
-                }
-            }
-        });
-        allowButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (blockButton.isChecked()) {
-                    return;
-                }
-                int uid = AppsActivity.setPolicyInfo(false, allowButton.isChecked(), type, position);
-
-                if (!allowButton.isChecked()) {
-                    ArrayList<Integer> toSet =  MainActivity.allowButtonsToSet.get(type);
+                    ArrayList<Integer> toSet = MainActivity.blockButtonsToSet.get(type);
                     if (toSet.contains(position)) {
                         toSet.remove(toSet.indexOf(position));
                     }
                 }
-
-                Intent intent = new Intent(v.getContext(), ModifyActivity.class);
-                intent.putExtra(ModifyActivity.EXTRA_APP, uid);
-                intent.putExtra(AppsActivity.EXTRA_TYPE, type);
-                v.getContext().startActivity(intent);
             }
         });
 
         MainActivity.blockButtons.get(type).put(position, blockButton);
-        MainActivity.allowButtons.get(type).put(position, allowButton);
-
         if (MainActivity.blockButtonsToSet.get(type).contains(position)) {
             blockButton.setChecked(true);
         }
-        if (MainActivity.allowButtonsToSet.get(type).contains(position)) {
-            allowButton.setChecked(true);
+
+        if (allowButton != null) {
+            // set the tag so we can identify the correct row in the listener
+            allowButton.setTag(Integer.valueOf(position));
+            allowButton.setOnCheckedChangeListener(aToggleButtonChangeListener);
+            allowButton.setChecked(allowCheckedPositions.get(position));
+
+            allowButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (blockButton.isChecked()) {
+                        return;
+                    }
+                    int uid = AppsActivity.setPolicyInfo(false, allowButton.isChecked(), type, position);
+
+                    if (!allowButton.isChecked()) {
+                        ArrayList<Integer> toSet = MainActivity.allowButtonsToSet.get(type);
+                        if (toSet.contains(position)) {
+                            toSet.remove(toSet.indexOf(position));
+                        }
+                    }
+
+                    Intent intent = new Intent(v.getContext(), ModifyActivity.class);
+                    intent.putExtra(ModifyActivity.EXTRA_APP, uid);
+                    intent.putExtra(AppsActivity.EXTRA_TYPE, type);
+                    v.getContext().startActivity(intent);
+                }
+            });
+
+            MainActivity.allowButtons.get(type).put(position, allowButton);
+            if (MainActivity.allowButtonsToSet.get(type).contains(position)) {
+                allowButton.setChecked(true);
+            }
         }
 
         return view;

@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.View;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
@@ -39,12 +40,14 @@ public class Policy {
     public static final int CONTEXT_STATE_ON = 1;
     public static final int CONTEXT_STATE_OFF = 2;
 
-    public static PolicyMessage[] messages = {
-            new PolicyMessage("Camera", "MediaStore.ACTION_IMAGE_CAPTURE"),
+    private static PolicyMessage[] __messages = {
+            new PolicyMessage("Camera", "android.permission.CAMERA"),
             new PolicyMessage("Microphone", "android.permission.RECORD_AUDIO"),
             new PolicyMessage("Get Contacts", "android.permission.READ_CONTACTS"),
             new PolicyMessage("Modify Contacts", "android.permission.WRITE_CONTACTS")
     };
+
+    public static ArrayList<PolicyMessage> messages = new ArrayList<PolicyMessage>(Arrays.asList(__messages));
 
     // Android NDK:
     // http://ph0b.com/new-android-studio-ndk-support/
@@ -79,17 +82,17 @@ public class Policy {
         printFilterLine(filter);
 
         int writeLen = -1;
-//        if (filter.contextType == CONTEXT_TYPE_INT) {
-//            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
-//                    filter.data, filter.context, CONTEXT_TYPE_INT, filter.contextIntValue);
-//        } else if (filter.contextType == CONTEXT_TYPE_STRING) {
-//            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
-//                    filter.data, filter.context, CONTEXT_TYPE_STRING, filter.contextStringValue);
-//        } else {
-//            Log.e(TAG, "Bad context type argument to setContextFilterLine!");
-//            return;
-//        }
-//
+        if (filter.contextType == CONTEXT_TYPE_INT) {
+            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
+                    filter.data, filter.context, CONTEXT_TYPE_INT, filter.contextIntValue);
+        } else if (filter.contextType == CONTEXT_TYPE_STRING) {
+            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
+                    filter.data, filter.context, CONTEXT_TYPE_STRING, filter.contextStringValue);
+        } else {
+            Log.e(TAG, "Bad context type argument to setContextFilterLine!");
+            return;
+        }
+
         Log.i(TAG, "setContextFilterLine: writeLen: " + writeLen);
     }
 
@@ -106,6 +109,8 @@ public class Policy {
 
         // remove from app memory
         MainActivity.savedRules.remove(stringFilter);
+        CustomTabFragment.adapter.notifyDataSetChanged();
+        CustomTabFragment.adapter.updateList();
 
         Log.i(TAG, "removing filter\n");
         printFilterLine(filter);
@@ -120,26 +125,26 @@ public class Policy {
         }
 
         // remove from kernel memory
-//        if (filter.contextType == CONTEXT_TYPE_INT) {
-//            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
-//                    filter.data, filter.context, CONTEXT_TYPE_INT, filter.contextIntValue);
-//        } else if (filter.contextType == CONTEXT_TYPE_STRING) {
-//            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
-//                    filter.data, filter.context, CONTEXT_TYPE_STRING, filter.contextStringValue);
-//        } else {
-//            Log.e(TAG, "Bad context type argument to setContextFilterLine!");
-//            return;
-//        }
+        if (filter.contextType == CONTEXT_TYPE_INT) {
+            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
+                    filter.data, filter.context, CONTEXT_TYPE_INT, filter.contextIntValue);
+        } else if (filter.contextType == CONTEXT_TYPE_STRING) {
+            writeLen = nativeWriteContextFilterLine(filter.action, filter.uid, filter.message,
+                    filter.data, filter.context, CONTEXT_TYPE_STRING, filter.contextStringValue);
+        } else {
+            Log.e(TAG, "Bad context type argument to setContextFilterLine!");
+            return;
+        }
 
         Log.i(TAG, "setContextFilterLine: writeLen: " + writeLen);
     }
 
     public static String translateMessage(int messageType) {
-        if (messageType < 0 || messageType >= messages.length) {
+        if (messageType < 0 || messageType >= messages.size()) {
             return null;
         }
 
-        return messages[messageType].filterMessage;
+        return messages.get(messageType).filterMessage;
 
         //GPS: "com.google.android.location.internal.EXTRA_LOCATION_LIST"
         //battery level: "Intent.ACTION_BATTERY_CHANGED"
@@ -185,18 +190,27 @@ public class Policy {
             if (filter == null) {
                 return -1;
             }
-            int messageType = -1;
-            for (int i=0; i<messages.length; i++) {
-                if (filter.message.equals(messages[i].filterMessage)) {
-                    messageType = i;
-                    break;
+
+            if (filter.context == 0) {
+                int messageType = -1;
+                for (int i=0; i<messages.size(); i++) {
+                    if (filter.message.equals(messages.get(i).filterMessage)) {
+                        messageType = i;
+                        break;
+                    }
                 }
-            }
-            if (messageType == -1) {
-                return -1;
+                if (messageType == -1) {
+                    // if its a message that a user added dynamically, make a new PolicyMessage
+                    MainActivity.addNewPolicyMessageToSavedStates(filter.message);
+                    messageType = messages.size() - 1;
+                }
+
+                MainActivity.savedPolicies.get(messageType).add(filter);
+            } else {
+                String displayString = ContextActivity.generateContextDisplayString(filter);
+                MainActivity.savedRules.put(displayString, filter);
             }
 
-            MainActivity.savedPolicies.get(messageType).add(filter);
         }
         scanner.close();
         return 0;
