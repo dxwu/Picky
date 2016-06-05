@@ -10,6 +10,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
@@ -64,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private String filepath;
     public static FloatingActionButton fab;
     public static Context mContext;
+    public static PackageManager packageManager;
     public static ViewPager viewPager;
 
     // one for every kind of PolicyMessage
@@ -396,7 +399,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void getAllApps() {
-        final PackageManager packageManager = getPackageManager();
+        packageManager = getPackageManager();
         MainActivity.installedApplications = packageManager.getInstalledApplications(PackageManager.GET_META_DATA);
         MainActivity.allApps = new ArrayList<String>();
         MainActivity.nameToUid = new HashMap<String, Integer>();

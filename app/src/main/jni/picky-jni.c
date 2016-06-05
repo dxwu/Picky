@@ -64,7 +64,7 @@ Java_edu_dartmouth_dwu_picky_Policy_nativeInitPolicyPersistFile(JNIEnv *env, jcl
 JNIEXPORT jstring JNICALL
 Java_edu_dartmouth_dwu_picky_Policy_nativeReadPolicy(JNIEnv *env, jclass type) {
 
-    int sizeRead = 1024;
+    int sizeRead = 4096;
     char* returnValue = (char*) malloc(sizeRead+1);
 
     if (fd < 0) {

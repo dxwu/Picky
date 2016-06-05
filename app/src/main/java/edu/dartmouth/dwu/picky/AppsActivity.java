@@ -65,7 +65,17 @@ public class AppsActivity extends AppCompatActivity {
 
     private void populateList(int type) {
         ListView lv = (ListView) findViewById(R.id.AppsListView);
-        adapter = new CustomArrayAdapter(MainActivity.allApps, this, type);
+
+        // special check for install packages (only Google Play Store can install apps)
+        // unless app requests another permission and is located in /system/app
+        // but that can only be done by a root attacker, TODO: more to discuss
+        if (Policy.isInstallPackagesType(type)) {
+            ArrayList<String> l = new ArrayList<String>();
+            l.add("Google Play Store");
+            adapter = new CustomArrayAdapter(l, this, type);
+        } else {
+            adapter = new CustomArrayAdapter(MainActivity.allApps, this, type);
+        }
 
         // set saved policy
         List<FilterLine> savedPolicyForMessageType = MainActivity.savedPolicies.get(type);
@@ -99,49 +109,6 @@ public class AppsActivity extends AppCompatActivity {
         lv.setAdapter(adapter);
     }
 
-    public static int setPolicyInfo(boolean blockButton, boolean isChecked, int type, int position) {
-        String uniqueAppName = MainActivity.allApps.get(position);
-        int uid = MainActivity.nameToUid.get(uniqueAppName);
 
-//        Log.i(TAG, "blockButton: " + Boolean.toString(blockButton) + ", isChecked: " + isChecked + ", type: " +
-//                type + ", pos: " + position + ", uid: " + uid);
-
-        int action;
-        if (blockButton) {
-            if (isChecked) {
-                action = Policy.BLOCK_ACTION;
-            } else {
-                action = Policy.UNBLOCK_ACTION;
-            }
-        } else {
-            if (isChecked) {
-                action = Policy.MODIFY_ACTION;
-            } else {
-                action = Policy.UNMODIFY_ACTION;
-            }
-        }
-
-        FilterLine filter = new FilterLine(uid, action, Policy.translateMessage(type), "");
-        Policy.setFilterLine(filter);
-
-        savePolicyInfo(filter, type, isChecked);
-        return uid;
-    }
-
-    private static void savePolicyInfo(FilterLine filter, int messageType, boolean isChecked) {
-        List<FilterLine> savedPolicyForMessageType = MainActivity.savedPolicies.get(messageType);
-
-        if (isChecked) {
-            savedPolicyForMessageType.add(filter);
-        } else {
-            // flip for comparison for remove()
-            if (filter.action == Policy.UNBLOCK_ACTION) {
-                filter.action = Policy.BLOCK_ACTION;
-            } else if (filter.action == Policy.UNMODIFY_ACTION) {
-                filter.action = Policy.MODIFY_ACTION;
-            }
-            savedPolicyForMessageType.remove(filter);
-        }
-    }
 
 }

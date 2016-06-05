@@ -416,9 +416,17 @@ public class ContextActivity extends AppCompatActivity {
             }
         }
         if (flag == -1) {
-            // if custom action, don't allow modify or unmodify
-            if (actionAction.equals("Modify") || actionAction.equals("Unmodify")) {
-                retString.append("Custom action message with Modify or Unmodify action currently unsupported.\n");
+            // if custom action, don't allow modify
+            if (actionAction.equals("Modify")) {
+                retString.append("Custom action message with Modify action currently unsupported.\n");
+                ret = false;
+            }
+        }
+
+        // modify with non supported message
+        if (actionAction.equals("Modify")) {
+            if (!actionValue.equals("Camera") || !actionValue.equals("Microphone")) {
+                retString.append("Modify action not supported for " + actionValue);
                 ret = false;
             }
         }

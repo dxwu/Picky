@@ -40,11 +40,48 @@ public class Policy {
     public static final int CONTEXT_STATE_ON = 1;
     public static final int CONTEXT_STATE_OFF = 2;
 
+    // "Dangerous permissions": https://developer.android.com/guide/topics/security/permissions.html#normal-dangerous
+    // all permissions: https://developer.android.com/reference/android/Manifest.permission.html
     private static PolicyMessage[] __messages = {
             new PolicyMessage("Camera", "android.permission.CAMERA"),
             new PolicyMessage("Microphone", "android.permission.RECORD_AUDIO"),
             new PolicyMessage("Get Contacts", "android.permission.READ_CONTACTS"),
-            new PolicyMessage("Modify Contacts", "android.permission.WRITE_CONTACTS")
+            new PolicyMessage("Modify Contacts", "android.permission.WRITE_CONTACTS"),
+            new PolicyMessage("Get Contact Account Info", "android.permission.GET_ACCOUNTS"),
+            new PolicyMessage("Access Fine Location", "android.permission.ACCESS_FINE_LOCATION"),
+            new PolicyMessage("Access Coarse Location", "android.permission.ACCESS_COARSE_LOCATION"),
+            new PolicyMessage("Read External Storage", "android.permission.READ_EXTERNAL_STORAGE"),
+            new PolicyMessage("Write External Storage", "android.permission.WRITE_EXTERNAL_STORAGE"),
+            new PolicyMessage("Install Packages", "com.android.vending.INTENT_PACKAGE_INSTALL_COMMIT"),
+            new PolicyMessage("Access Internet", "android.permission.INTERNET"),
+            new PolicyMessage("Use Overlays and System Alerts (< Android 6.0)", "android.permission.SYSTEM_ALERT_WINDOW"),
+            new PolicyMessage("Write System Settings", "android.permission.WRITE_SETTINGS"),
+
+            new PolicyMessage("Read Phone State", "android.permission.READ_PHONE_STATE"),
+            new PolicyMessage("Make Phone Call", "android.permission.CALL_PHONE"),
+            new PolicyMessage("Read Call Log", "android.permission.READ_CALL_LOG"),
+            new PolicyMessage("Write Call Log", "android.permission.WRITE_CALL_LOG"),
+            new PolicyMessage("Send SMS", "android.permission.SEND_SMS"),
+            new PolicyMessage("Receive SMS", "android.permission.RECEIVE_SMS"),
+            new PolicyMessage("Read SMS", "android.permission.READ_SMS"),
+            new PolicyMessage("Receive MMS", "android.permission.RECEIVE_MMS"),
+            new PolicyMessage("Receive WAP", "android.permission.RECEIVE_WAP_PUSH"),
+            new PolicyMessage("Read Calendar", "android.permission.READ_CALENDAR"),
+            new PolicyMessage("Write Calendar", "android.permission.WRITE_CALENDAR"),
+            new PolicyMessage("Read Body Sensors", "android.permission.BODY_SENSORS"),
+
+            new PolicyMessage("Access Network State", "android.permission.ACCESS_NETWORK_STATE"),
+            new PolicyMessage("Change Network State", "android.permission.CHANGE_NETWORK_STATE"),
+            new PolicyMessage("Access Wifi State", "android.permission.ACCESS_WIFI_STATE"),
+            new PolicyMessage("Change Wifi State", "android.permission.CHANGE_WIFI_STATE"),
+            new PolicyMessage("Read Battery Statistics", "android.permission.BATTERY_STATS"),
+            new PolicyMessage("Connect to Bluetooth Devices", "android.permission.BLUETOOTH"),
+            new PolicyMessage("Discover and Pair to Bluetooth Devices", "android.permission.BLUETOOTH_ADMIN"),
+            new PolicyMessage("Use NFC", "android.permission.NFC"),
+            new PolicyMessage("Access Flashlight", "android.permission.FLASHLIGHT"),
+            new PolicyMessage("Read Browsing History and Bookmarks", "com.android.browser.permission.READ_HISTORY_BOOKMARKS"),
+            new PolicyMessage("Transmit Infared", "android.permission.TRANSMIT_IR"),
+            new PolicyMessage("Use VoIP", "android.permission.USE_SIP")
     };
 
     public static ArrayList<PolicyMessage> messages = new ArrayList<PolicyMessage>(Arrays.asList(__messages));
@@ -262,6 +299,11 @@ public class Policy {
         return filter;
     }
 
+    public static boolean isInstallPackagesType(int type) {
+        String typeOfMessage = Policy.messages.get(type).filterMessage;
+        return typeOfMessage.equals("com.android.vending.INTENT_PACKAGE_INSTALL_COMMIT");
+    }
+
     public static void printFilterLine(FilterLine filter) {
         String contextString = "";
         if (filter.context != 0) {
@@ -283,4 +325,61 @@ public class Policy {
         );
     }
 
+    public static int setPolicyInfo(boolean blockButton, boolean isChecked, int type, int position, String data) {
+        String uniqueAppName = MainActivity.allApps.get(position);
+        int uid = MainActivity.nameToUid.get(uniqueAppName);
+
+//        Log.i(TAG, "blockButton: " + Boolean.toString(blockButton) + ", isChecked: " + isChecked + ", type: " +
+//                type + ", pos: " + position + ", uid: " + uid);
+
+        int action;
+        if (blockButton) {
+            if (isChecked) {
+                action = Policy.BLOCK_ACTION;
+            } else {
+                action = Policy.UNBLOCK_ACTION;
+            }
+        } else {
+            if (isChecked) {
+                action = Policy.MODIFY_ACTION;
+            } else {
+                action = Policy.UNMODIFY_ACTION;
+                // get saved data string for this filter to remove
+                FilterLine toRemove = new FilterLine(uid, Policy.MODIFY_ACTION, Policy.translateMessage(type), data);
+                List<FilterLine> savedPolicyForMessageType = MainActivity.savedPolicies.get(type);
+                for (FilterLine filter : savedPolicyForMessageType) {
+                    // FilterLine equals() ignores data string
+                    if (filter.equals(toRemove)) {
+                        data = filter.data;
+                    }
+                }
+            }
+        }
+
+        if (Policy.isInstallPackagesType(type)) {
+            uid = MainActivity.nameToUid.get("Google Play Store");
+        }
+
+        FilterLine filter = new FilterLine(uid, action, Policy.translateMessage(type), data);
+        Policy.setFilterLine(filter);
+
+        savePolicyInfo(filter, type, isChecked);
+        return uid;
+    }
+
+    private static void savePolicyInfo(FilterLine filter, int messageType, boolean isChecked) {
+        List<FilterLine> savedPolicyForMessageType = MainActivity.savedPolicies.get(messageType);
+
+        if (isChecked) {
+            savedPolicyForMessageType.add(filter);
+        } else {
+            // flip for comparison for remove()
+            if (filter.action == Policy.UNBLOCK_ACTION) {
+                filter.action = Policy.BLOCK_ACTION;
+            } else if (filter.action == Policy.UNMODIFY_ACTION) {
+                filter.action = Policy.MODIFY_ACTION;
+            }
+            savedPolicyForMessageType.remove(filter);
+        }
+    }
 }

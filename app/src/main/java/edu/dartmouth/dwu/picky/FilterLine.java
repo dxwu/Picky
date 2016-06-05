@@ -66,7 +66,7 @@ public class FilterLine {
         if (contextType != that.contextType) return false;
         if (contextIntValue != that.contextIntValue) return false;
         if (!message.equals(that.message)) return false;
-        if (!data.equals(that.data)) return false;
+//        if (!data.equals(that.data)) return false;
         return contextStringValue.equals(that.contextStringValue);
 
     }

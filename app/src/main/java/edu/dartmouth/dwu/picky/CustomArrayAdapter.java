@@ -2,6 +2,7 @@ package edu.dartmouth.dwu.picky;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.drawable.Drawable;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -10,6 +11,7 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.ImageView;
 import android.widget.ListAdapter;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -17,6 +19,7 @@ import android.widget.ToggleButton;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * Created by dwu on 5/18/16.
@@ -97,8 +100,17 @@ public class CustomArrayAdapter extends BaseAdapter implements ListAdapter {
             } else {
                 view = inflater.inflate(R.layout.apps_list_row_no_modify, null);
             }
-
         }
+
+//        int uid = MainActivity.nameToUid.get(MainActivity.allApps.get(position));
+//        String packageName = MainActivity.packageManager.getPackagesForUid(uid)[0];
+//        try {
+//            ImageView icon = (ImageView) view.findViewById(R.id.appIcon);
+//            Drawable iconImg = MainActivity.packageManager.getApplicationIcon(packageName);
+//            icon.setImageDrawable(iconImg);
+//        } catch (Exception e) {
+//            Log.i(TAG, "could not find icon\n");
+//        }
 
         final TextView listItemText = (TextView) view.findViewById(R.id.list_item_string);
         listItemText.setText(list.get(position));
@@ -117,7 +129,7 @@ public class CustomArrayAdapter extends BaseAdapter implements ListAdapter {
                 if (allowButton != null && allowButton.isChecked()) {
                     return;
                 }
-                AppsActivity.setPolicyInfo(true, blockButton.isChecked(), type, position);
+                Policy.setPolicyInfo(true, blockButton.isChecked(), type, position, "");
 
                 if (!blockButton.isChecked()) {
                     ArrayList<Integer> toSet = MainActivity.blockButtonsToSet.get(type);
@@ -145,19 +157,21 @@ public class CustomArrayAdapter extends BaseAdapter implements ListAdapter {
                     if (blockButton.isChecked()) {
                         return;
                     }
-                    int uid = AppsActivity.setPolicyInfo(false, allowButton.isChecked(), type, position);
 
+                    // called when we switch from on to off
                     if (!allowButton.isChecked()) {
                         ArrayList<Integer> toSet = MainActivity.allowButtonsToSet.get(type);
                         if (toSet.contains(position)) {
                             toSet.remove(toSet.indexOf(position));
                         }
-                    }
 
-                    Intent intent = new Intent(v.getContext(), ModifyActivity.class);
-                    intent.putExtra(ModifyActivity.EXTRA_APP, uid);
-                    intent.putExtra(AppsActivity.EXTRA_TYPE, type);
-                    v.getContext().startActivity(intent);
+                        Policy.setPolicyInfo(false, false, type, position, "");
+                    } else {
+                        Intent intent = new Intent(v.getContext(), ModifyActivity.class);
+                        intent.putExtra(ModifyActivity.EXTRA_POSITION, position);
+                        intent.putExtra(AppsActivity.EXTRA_TYPE, type);
+                        v.getContext().startActivity(intent);
+                    }
                 }
             });
 
