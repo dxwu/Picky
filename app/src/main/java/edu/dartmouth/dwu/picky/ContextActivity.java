@@ -36,9 +36,9 @@ public class ContextActivity extends AppCompatActivity {
     private static final String actionActionDefault = "Action";
 
     private Spinner sContextValue, sContextMatches, sContextMatchesValue;
-    private final String[] contextValuesArray = {contextValueDefault, "Wifi state", "Wifi ssid", "Bluetooth state"};
+    private final String[] contextValuesArray = {contextValueDefault, "Wifi state", "Wifi ssid", "Bluetooth state", "App running"};
     private final String[] contextMatchesArray = {contextMatchesDefault, "Status", "Matches"};
-    private final String[] contextMatchesValueArray = {contextMatchesValueDefault, "On", "Off", "Enter value"};
+    private final String[] contextMatchesValueArray = {contextMatchesValueDefault, "On", "Off", "Enter value", "Pick app"};
 
     private Spinner sActionMessage, sActionUid, sActionAction;
     private ArrayList<String> actionMessagesArray = new ArrayList<>();
@@ -48,7 +48,9 @@ public class ContextActivity extends AppCompatActivity {
 
     private ArrayAdapter<String> contextDataAdapter;
     private ArrayAdapter<String> actionMessageAdapter;
+    private ArrayAdapter<String> apps;
     private final int positionOfCustomValue = 3;
+    private final int positionOfCustomAppValue = 4;
     private int positionOfCustomAction;
 
     @Override
@@ -114,10 +116,10 @@ public class ContextActivity extends AppCompatActivity {
         // action uids
         actionUidsArray.add(actionUidDefault);
         actionUidsArray.addAll(MainActivity.allApps);
-        ArrayAdapter<String> dataAdapter5 = new ArrayAdapter<>(this,
+        apps = new ArrayAdapter<>(this,
                 R.layout.spiner_tv_layout, actionUidsArray);
-        dataAdapter5.setDropDownViewResource(R.layout.spiner_tv_layout);
-        sActionUid.setAdapter(dataAdapter5);
+        apps.setDropDownViewResource(R.layout.spiner_tv_layout);
+        sActionUid.setAdapter(apps);
 
         // action actions
         ArrayAdapter<String> dataAdapter6 = new ArrayAdapter<>(this,
@@ -131,6 +133,8 @@ public class ContextActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position == positionOfCustomValue) {
                     promptUserForString(true);
+                } else if (position == positionOfCustomAppValue) {
+                    promptUserForApp();
                 }
             }
 
@@ -150,6 +154,45 @@ public class ContextActivity extends AppCompatActivity {
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
+    }
+
+    public void promptUserForApp() {
+        AlertDialog.Builder appDialog = new AlertDialog.Builder(this);
+
+        final Spinner appsSpinner = new Spinner(this);
+        appsSpinner.setAdapter(apps);
+        appsSpinner.setGravity(Gravity.CENTER);
+        appsSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) {
+                    return;
+                }
+                position -= 1;  // starts with the string "App"
+                Spinner valSpinner = (Spinner) findViewById(R.id.spinnerContextMatchesValue);
+                int uid = MainActivity.nameToUid.get(MainActivity.allApps.get(position));
+                String packageName = MainActivity.packageManager.getPackagesForUid(uid)[0];
+
+                contextMatchesValueArray[positionOfCustomAppValue] = packageName;
+                contextDataAdapter.notifyDataSetChanged();
+                valSpinner.setSelection(positionOfCustomAppValue);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+        appDialog.setPositiveButton("enter", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                // needed to exit out of spinner without clicking on empty space
+            }
+        });
+        appDialog.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+            }
+        });
+        appDialog.setView(appsSpinner);
+        appDialog.show();
     }
 
     public void promptUserForString(final boolean isContext) {
@@ -212,6 +255,8 @@ public class ContextActivity extends AppCompatActivity {
             contextString = "wifi ssid";
         } else if (filter.context == Policy.CONTEXT_BT_STATE) {
             contextString = "bluetooth state";
+        } else if (filter.context == Policy.CONTEXT_APP_RUNNING) {
+            contextString = "app running";
         }
         ret.append(contextString);
 
@@ -273,8 +318,8 @@ public class ContextActivity extends AppCompatActivity {
                 actionValue, actionApp, actionAction);
         Log.i(TAG, "saveRule: " + ruleString);
 
-        if (validateRule(contextType, contextComparator, contextValue,
-                actionValue, actionApp, actionAction) == false) {
+        if (!validateRule(contextType, contextComparator, contextValue,
+                actionValue, actionApp, actionAction)) {
             return;
         }
 
@@ -291,6 +336,10 @@ public class ContextActivity extends AppCompatActivity {
         if (contextType.equals("Bluetooth state")) {
             intContext = Policy.CONTEXT_BT_STATE;
             intContextIntOrString = Policy.CONTEXT_TYPE_INT;
+        }
+        if (contextType.equals("App running")) {
+            intContext = Policy.CONTEXT_APP_RUNNING;
+            intContextIntOrString = Policy.CONTEXT_TYPE_STRING;
         }
 
         if (contextValue.equals("On")) {
@@ -377,6 +426,10 @@ public class ContextActivity extends AppCompatActivity {
             retString.append("Wifi ssid must correspond to \"Matches\" comparator.\n");
             ret = false;
         }
+        if (contextType.equals("App running") && contextComparator.equals("Status")) {
+            retString.append("App running must correspond to \"Matches\" comparator.\n");
+            ret = false;
+        }
 
         // type and value
         if (contextType.equals("Wifi state") && !contextValue.equals("On") && !contextValue.equals("Off")) {
@@ -389,6 +442,10 @@ public class ContextActivity extends AppCompatActivity {
         }
         if (contextType.equals("Wifi ssid") && (contextValue.equals("On") || contextValue.equals("Off"))) {
             retString.append("Wifi ssid must correspond to custom value (Enter value).\n");
+            ret = false;
+        }
+        if (contextType.equals("App running") && (contextValue.equals("On") || contextValue.equals("Off"))) {
+            retString.append("App running must correspond to custom value (Enter value).\n");
             ret = false;
         }
 

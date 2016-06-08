@@ -351,6 +351,7 @@ public class Policy {
                     // FilterLine equals() ignores data string
                     if (filter.equals(toRemove)) {
                         data = filter.data;
+                        break;
                     }
                 }
             }
