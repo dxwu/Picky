@@ -95,7 +95,11 @@ public class CustomArrayAdapter extends BaseAdapter implements ListAdapter {
             LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
             String typeOfMessage = Policy.messages.get(type).filterMessage;
-            if (typeOfMessage.equals("android.permission.CAMERA") || typeOfMessage.equals("android.permission.RECORD_AUDIO")) {
+
+            // display "modify" button
+            if (typeOfMessage.equals("android.permission.CAMERA") ||
+                    typeOfMessage.equals("android.permission.RECORD_AUDIO") ||
+                    typeOfMessage.equals("android.permission.ACCESS_FINE_LOCATION")) {
                 view = inflater.inflate(R.layout.app_list_row, null);
             } else {
                 view = inflater.inflate(R.layout.apps_list_row_no_modify, null);
